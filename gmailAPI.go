@@ -105,13 +105,21 @@ type ExportedMessage struct {
 	Attachments []*Attachment
 }
 
-func (receiver *Gmail3k) ExportMessage(rfc822MsgID string) (*ExportedMessage, error) {
+func (receiver *Gmail3k) ExportMessageRfc822MsgId(rfc822MsgID string) (*ExportedMessage, error) {
 	log.Println("User [" + receiver.UserEmail + "]: Gmail.Messages.List.Query{\"" + rfc822MsgID + "\"}")
 	messageList, err := receiver.Search("rfc822msgid:" + rfc822MsgID)
-	originalMessage, err := receiver.GmailService.Users.Messages.Get(receiver.UserEmail, messageList[0].Id).Do()
 	if err != nil {
 		log.Println(err.Error())
-		panic(err)
+		return nil, err
+	}
+	return receiver.ExportMessage(messageList[0].Id)
+}
+
+func (receiver *Gmail3k) ExportMessage(threadId string) (*ExportedMessage, error) {
+	originalMessage, err := receiver.GmailService.Users.Messages.Get(receiver.UserEmail, threadId).Do()
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
 	}
 
 	headers := make(map[string]string)
@@ -122,7 +130,7 @@ func (receiver *Gmail3k) ExportMessage(rfc822MsgID string) (*ExportedMessage, er
 	rawMessageResponse, err := receiver.GmailService.Users.Messages.Get(receiver.UserEmail, originalMessage.Id).Format("raw").Do()
 	if err != nil {
 		log.Println(err.Error())
-		panic(err)
+		return nil, err
 	}
 
 	decodedData, err := base64.URLEncoding.DecodeString(rawMessageResponse.Raw)
@@ -441,7 +449,7 @@ func AttachmentFromPath(filePath string) *Attachment {
 }
 
 func (receiver *Gmail3k) GetMessageAttachmentsByRFC822MGSID(rfc822MsgID string) ([]*Attachment, error) {
-	message, err := receiver.ExportMessage(rfc822MsgID)
+	message, err := receiver.ExportMessageRfc822MsgId(rfc822MsgID)
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
@@ -450,7 +458,7 @@ func (receiver *Gmail3k) GetMessageAttachmentsByRFC822MGSID(rfc822MsgID string) 
 }
 
 func (receiver *Gmail3k) GetThreadAttachments(threadId string) ([]*Attachment, error) {
-	//ExportMessage message by its thread id
+	//ExportMessageRfc822MsgId message by its thread id
 	var attachments []*Attachment
 	response, err := receiver.GmailService.Users.Threads.Get(receiver.UserEmail, threadId).Fields("*").Do()
 	if err != nil {
