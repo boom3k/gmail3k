@@ -173,6 +173,7 @@ func (receiver *Gmail3k) Search(query string) ([]*gmail.Message, error) {
 		}
 
 		messages = append(messages, listMessagesResponse.Messages...)
+		log.Printf("Query [%s] sessages thus far: %d\n", query, len(messages))
 		nextPageToken = listMessagesResponse.NextPageToken
 		if nextPageToken == "" {
 			break
