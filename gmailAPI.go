@@ -165,7 +165,7 @@ func (receiver *Gmail3k) ExportMessage(threadId string) (*ExportedMessage, error
 	return exportedMessage, nil
 }
 
-func (receiver *Gmail3k) Search(query string) ([]*gmail.Message, error) {
+func (receiver *Gmail3k) Search(query string, includeSpamTrash bool) ([]*gmail.Message, error) {
 	var messages []*gmail.Message
 	nextPageToken := ""
 	for {
@@ -174,7 +174,7 @@ func (receiver *Gmail3k) Search(query string) ([]*gmail.Message, error) {
 			PageToken(nextPageToken).
 			Q(query).
 			Fields("*").
-			IncludeSpamTrash(true).Do()
+			IncludeSpamTrash(includeSpamTrash).Do()
 		if err != nil {
 			log.Println(err.Error())
 			return nil, err
