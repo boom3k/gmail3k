@@ -107,7 +107,7 @@ type ExportedMessage struct {
 
 func (receiver *Gmail3k) ExportMessageRfc822MsgId(rfc822MsgID string) (*ExportedMessage, error) {
 	log.Println("User [" + receiver.UserEmail + "]: Gmail.Messages.List.Query{\"" + rfc822MsgID + "\"}")
-	messageList, err := receiver.Search("rfc822msgid:" + rfc822MsgID)
+	messageList, err := receiver.Search("rfc822msgid:"+rfc822MsgID, true)
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
@@ -192,7 +192,7 @@ func (receiver *Gmail3k) Search(query string, includeSpamTrash bool) ([]*gmail.M
 }
 
 func (receiver *Gmail3k) GetMessage(rfc822MsgId string) (*gmail.Message, error) {
-	messages, err := receiver.Search("rfc822msgid:" + rfc822MsgId)
+	messages, err := receiver.Search("rfc822msgid:"+rfc822MsgId, true)
 	if err != nil {
 		log.Println(err.Error())
 		return nil, err
