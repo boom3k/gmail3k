@@ -79,7 +79,7 @@ func (receiver *Draft) Send(gmail3k *Gmail3k) (*gmail.Message, error) {
 	return gmail3k.SendDraft(receiver)
 }
 
-func DraftEmail(to, cc, bcc []string, subject, body string) *Draft {
+func NewEmailDraft(to, cc, bcc []string, subject, body string) *Draft {
 	return &Draft{
 		To:      to,
 		Cc:      cc,
