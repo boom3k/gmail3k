@@ -477,19 +477,20 @@ func (receiver *Gmail3k) GetThreadAttachments(threadId string) ([]*Attachment, e
 					Do()
 				if err != nil {
 					log.Println(err.Error())
-					panic(err)
+					log.Printf("Couldn't handle attachment \"%s\" for Thread[%s]", messagePart.Filename, threadId)
+				} else {
+					data, err := base64.URLEncoding.DecodeString(attachmentResponse.Data)
+					if err != nil {
+						log.Println(err.Error())
+						panic(err)
+					}
+					fileName := messagePart.Filename
+					emailAttachment := &Attachment{
+						Name: fileName,
+						Data: data,
+					}
+					attachments = append(attachments, emailAttachment)
 				}
-				data, err := base64.URLEncoding.DecodeString(attachmentResponse.Data)
-				if err != nil {
-					log.Println(err.Error())
-					panic(err)
-				}
-				fileName := messagePart.Filename
-				emailAttachment := &Attachment{
-					Name: fileName,
-					Data: data,
-				}
-				attachments = append(attachments, emailAttachment)
 			}
 		}
 	}
