@@ -20,12 +20,14 @@ import (
 	"sync"
 )
 
-type Gmail3k struct {
+var GmailScope = []string{gmail.MailGoogleComScope}
+
+type API struct {
 	GmailService *gmail.Service
 	UserEmail    string
 }
 
-func BuildGmail3kWithOAuth2(subject string, scopes []string, clientSecret, authorizationToken []byte, ctx context.Context) *Gmail3k {
+func BuildGmail3kWithOAuth2(subject string, scopes []string, clientSecret, authorizationToken []byte, ctx context.Context) *API {
 	config, err := google.ConfigFromJSON(clientSecret, scopes...)
 	if err != nil {
 		log.Println(err.Error())
@@ -41,7 +43,7 @@ func BuildGmail3kWithOAuth2(subject string, scopes []string, clientSecret, autho
 	return BuildGmail3k(client, subject, ctx)
 }
 
-func BuildGmail3kWithImpersonator(subject string, scopes []string, serviceAccountKey []byte, ctx context.Context) *Gmail3k {
+func BuildGmail3kWithImpersonator(subject string, scopes []string, serviceAccountKey []byte, ctx context.Context) *API {
 	jwt, err := google.JWTConfigFromJSON(serviceAccountKey, scopes...)
 	if err != nil {
 		log.Println(err.Error())
@@ -51,16 +53,16 @@ func BuildGmail3kWithImpersonator(subject string, scopes []string, serviceAccoun
 	return BuildGmail3k(jwt.Client(ctx), subject, ctx)
 }
 
-func BuildGmail3k(client *http.Client, subject string, ctx context.Context) *Gmail3k {
+func BuildGmail3k(client *http.Client, subject string, ctx context.Context) *API {
 	gmailService, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Println(err.Error())
 		panic(err)
 	}
-	newGmailAPI := &Gmail3k{}
+	newGmailAPI := &API{}
 	newGmailAPI.GmailService = gmailService
 	newGmailAPI.UserEmail = subject
-	log.Printf("Gmail3k --> \nGmailService: %v, UserEmail: %s\n", &newGmailAPI.GmailService, subject)
+	log.Printf("API --> \nGmailService: %v, UserEmail: %s\n", &newGmailAPI.GmailService, subject)
 	return newGmailAPI
 }
 
@@ -75,7 +77,7 @@ type Draft struct {
 	Attachments []*Attachment
 }
 
-func (receiver *Draft) Send(gmail3k *Gmail3k) (*gmail.Message, error) {
+func (receiver *Draft) Send(gmail3k *API) (*gmail.Message, error) {
 	return gmail3k.SendDraft(receiver)
 }
 
@@ -105,7 +107,7 @@ type ExportedMessage struct {
 	Attachments []*Attachment
 }
 
-func (receiver *Gmail3k) ExportMessageRfc822MsgId(rfc822MsgID string) (*ExportedMessage, error) {
+func (receiver *API) ExportMessageRfc822MsgId(rfc822MsgID string) (*ExportedMessage, error) {
 	log.Println("User [" + receiver.UserEmail + "]: Gmail.Messages.List.Query{\"" + rfc822MsgID + "\"}")
 	messageList, err := receiver.Search("rfc822msgid:"+rfc822MsgID, true)
 	if err != nil {
@@ -115,7 +117,7 @@ func (receiver *Gmail3k) ExportMessageRfc822MsgId(rfc822MsgID string) (*Exported
 	return receiver.ExportMessage(messageList[0].Id)
 }
 
-func (receiver *Gmail3k) ExportMessage(threadId string) (*ExportedMessage, error) {
+func (receiver *API) ExportMessage(threadId string) (*ExportedMessage, error) {
 	originalMessage, err := receiver.GmailService.Users.Messages.Get(receiver.UserEmail, threadId).Do()
 	if err != nil {
 		log.Println(err.Error())
@@ -165,7 +167,7 @@ func (receiver *Gmail3k) ExportMessage(threadId string) (*ExportedMessage, error
 	return exportedMessage, nil
 }
 
-func (receiver *Gmail3k) Search(query string, includeSpamTrash bool) ([]*gmail.Message, error) {
+func (receiver *API) Search(query string, includeSpamTrash bool) ([]*gmail.Message, error) {
 	var messages []*gmail.Message
 	nextPageToken := ""
 	for {
@@ -191,7 +193,7 @@ func (receiver *Gmail3k) Search(query string, includeSpamTrash bool) ([]*gmail.M
 	return messages, nil
 }
 
-func (receiver *Gmail3k) GetMessage(rfc822MsgId string) (*gmail.Message, error) {
+func (receiver *API) GetMessage(rfc822MsgId string) (*gmail.Message, error) {
 	messages, err := receiver.Search("rfc822msgid:"+rfc822MsgId, true)
 	if err != nil {
 		log.Println(err.Error())
@@ -227,7 +229,7 @@ func GetBodyFromParts(rootParts []*gmail.MessagePart) (*MessageBody, error) {
 	return messageBody, nil
 }
 
-func (receiver *Gmail3k) SendEmail(to, cc, bcc []string, sendAs, subject, body string, attachments []*Attachment) (*gmail.Message, error) {
+func (receiver *API) SendEmail(to, cc, bcc []string, sendAs, subject, body string, attachments []*Attachment) (*gmail.Message, error) {
 	boundary := _string(32, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/")
 	messageBody := "Content-Type: multipart/mixed; boundary=" + boundary + " \n" +
 		"MIME-Version: 1.0\n" +
@@ -283,12 +285,12 @@ func (receiver *Gmail3k) SendEmail(to, cc, bcc []string, sendAs, subject, body s
 	return response, nil
 }
 
-func (receiver *Gmail3k) SendDraft(draft *Draft) (*gmail.Message, error) {
+func (receiver *API) SendDraft(draft *Draft) (*gmail.Message, error) {
 	return receiver.SendEmail(draft.To, draft.Cc, draft.Bcc, draft.SendAs, draft.Subject, draft.Body, draft.Attachments)
 }
 
 //Delegates
-func (receiver *Gmail3k) GetDelegates() (map[string]string, error) {
+func (receiver *API) GetDelegates() (map[string]string, error) {
 	response, err := receiver.GmailService.Users.Settings.Delegates.List(receiver.UserEmail).Do()
 	if err != nil {
 		log.Println(err.Error())
@@ -301,7 +303,7 @@ func (receiver *Gmail3k) GetDelegates() (map[string]string, error) {
 	return delegateMap, nil
 }
 
-func (receiver *Gmail3k) AddDelegates(userList []string) (map[string]string, error) {
+func (receiver *API) AddDelegates(userList []string) (map[string]string, error) {
 	existingDelegates, err := receiver.GetDelegates()
 	if err != nil {
 		log.Println(err.Error())
@@ -349,7 +351,7 @@ func (receiver *Gmail3k) AddDelegates(userList []string) (map[string]string, err
 
 }
 
-func (receiver *Gmail3k) RemoveDelegates(userList []string) (map[string]string, error) {
+func (receiver *API) RemoveDelegates(userList []string) (map[string]string, error) {
 	existingDelegates, err := receiver.GetDelegates()
 	if err != nil {
 		log.Println(err.Error())
@@ -398,7 +400,7 @@ func (receiver *Gmail3k) RemoveDelegates(userList []string) (map[string]string, 
 }
 
 //Labels
-func (receiver *Gmail3k) GetAllLabels() ([]*gmail.Label, error) {
+func (receiver *API) GetAllLabels() ([]*gmail.Label, error) {
 	listLabelsResponse, labelsListErr := receiver.GmailService.Users.Labels.List(receiver.UserEmail).Do()
 	if labelsListErr != nil {
 		log.Println(labelsListErr.Error())
@@ -407,7 +409,7 @@ func (receiver *Gmail3k) GetAllLabels() ([]*gmail.Label, error) {
 	return listLabelsResponse.Labels, nil
 }
 
-func (receiver *Gmail3k) GetLabel(labelName string) (*gmail.Label, error) {
+func (receiver *API) GetLabel(labelName string) (*gmail.Label, error) {
 	allLabels, err := receiver.GetAllLabels()
 	if err != nil {
 		log.Println(err.Error())
@@ -448,7 +450,7 @@ func AttachmentFromPath(filePath string) *Attachment {
 	}
 }
 
-func (receiver *Gmail3k) GetMessageAttachmentsByRFC822MGSID(rfc822MsgID string) ([]*Attachment, error) {
+func (receiver *API) GetMessageAttachmentsByRFC822MGSID(rfc822MsgID string) ([]*Attachment, error) {
 	message, err := receiver.ExportMessageRfc822MsgId(rfc822MsgID)
 	if err != nil {
 		log.Println(err.Error())
@@ -457,7 +459,7 @@ func (receiver *Gmail3k) GetMessageAttachmentsByRFC822MGSID(rfc822MsgID string) 
 	return receiver.GetThreadAttachments(message.ThreadId)
 }
 
-func (receiver *Gmail3k) GetThreadAttachments(threadId string) ([]*Attachment, error) {
+func (receiver *API) GetThreadAttachments(threadId string) ([]*Attachment, error) {
 	//ExportMessageRfc822MsgId message by its thread id
 	var attachments []*Attachment
 	response, err := receiver.GmailService.Users.Threads.Get(receiver.UserEmail, threadId).Fields("*").Do()
