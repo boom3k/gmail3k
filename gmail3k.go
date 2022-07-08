@@ -81,11 +81,12 @@ func (receiver *Draft) Send(gmail3k *API) (*gmail.Message, error) {
 	return gmail3k.SendDraft(receiver)
 }
 
-func NewEmailDraft(to, cc, bcc []string, subject, body string) *Draft {
+func NewEmailDraft(to, cc, bcc []string, sendAs, subject, body string) *Draft {
 	return &Draft{
 		To:      to,
 		Cc:      cc,
 		Bcc:     bcc,
+		SendAs:  sendAs,
 		Subject: subject,
 		Body:    body,
 	}
@@ -237,7 +238,7 @@ func (receiver *API) SendEmail(to, cc, bcc []string, sendAs, subject, body strin
 		"CC: " + strings.Join(cc, ",") + "\n" +
 		"BCC: " + strings.Join(bcc, ",") + "\n" +
 		"From: " + sendAs + "<" + receiver.UserEmail + ">\n" +
-		"UserEmail: " + subject + "\n\n" +
+		"Subject: " + subject + "\n\n" +
 		"--" + boundary + "\n" +
 		"Content-Type: text/html; charset=" + string('"') + "UTF-8" + string('"') + "\n" +
 		"MIME-Version: 1.0\n" +
